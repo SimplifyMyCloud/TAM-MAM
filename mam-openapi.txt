@@ -1,0 +1,219 @@
+# Previous specification remains the same until components section
+components:
+  examples:
+    AssetExample:
+      value:
+        id: "123e4567-e89b-12d3-a456-426614174000"
+        title: "Company Brand Video 2024"
+        description: "Annual brand video showcasing company culture"
+        type: "video"
+        status: "ready"
+        flowId: "123e4567-e89b-12d3-a456-426614174001"
+        sourceId: "123e4567-e89b-12d3-a456-426614174002"
+        collectionId: "123e4567-e89b-12d3-a456-426614174003"
+        metadata:
+          duration: 180.5
+          format: "MP4"
+          codec: "H.264"
+          resolution: "1920x1080"
+          framerate: "29.97"
+          bitrate: 8000000
+          audio:
+            codec: "AAC"
+            channels: 2
+            sampleRate: 48000
+          tags: ["brand", "corporate", "2024"]
+          customFields:
+            department: "Marketing"
+            project: "Annual Brand Campaign"
+            location: "Head Office"
+        createdBy: "123e4567-e89b-12d3-a456-426614174004"
+        createdAt: "2024-01-15T14:30:00Z"
+        updatedAt: "2024-01-15T14:45:00Z"
+
+    AssetListExample:
+      value:
+        success: true
+        data:
+          - id: "123e4567-e89b-12d3-a456-426614174000"
+            title: "Company Brand Video 2024"
+            type: "video"
+            status: "ready"
+            createdAt: "2024-01-15T14:30:00Z"
+            metadata:
+              duration: 180.5
+              format: "MP4"
+          - id: "123e4567-e89b-12d3-a456-426614174005"
+            title: "Product Launch Event"
+            type: "video"
+            status: "processing"
+            createdAt: "2024-01-15T15:00:00Z"
+            metadata:
+              duration: 3600
+              format: "MP4"
+
+    SearchResultExample:
+      value:
+        success: true
+        data:
+          assets:
+            - id: "123e4567-e89b-12d3-a456-426614174000"
+              title: "Company Brand Video 2024"
+              type: "video"
+              status: "ready"
+              metadata:
+                duration: 180.5
+                format: "MP4"
+                tags: ["brand", "corporate"]
+            - id: "123e4567-e89b-12d3-a456-426614174006"
+              title: "Brand Guidelines 2024"
+              type: "document"
+              status: "ready"
+              metadata:
+                format: "PDF"
+                tags: ["brand", "guidelines"]
+          totalCount: 45
+          facets:
+            type:
+              values:
+                - value: "video"
+                  count: 25
+                - value: "document"
+                  count: 15
+                - value: "image"
+                  count: 5
+            status:
+              values:
+                - value: "ready"
+                  count: 40
+                - value: "processing"
+                  count: 5
+
+    ErrorExamples:
+      invalidRequest:
+        value:
+          success: false
+          error:
+            code: "INVALID_REQUEST"
+            message: "The request was invalid"
+            details: "Field 'title' is required"
+      notFound:
+        value:
+          success: false
+          error:
+            code: "NOT_FOUND"
+            message: "Asset not found"
+      unauthorized:
+        value:
+          success: false
+          error:
+            code: "UNAUTHORIZED"
+            message: "Invalid or expired token"
+
+    CollectionExample:
+      value:
+        id: "123e4567-e89b-12d3-a456-426614174003"
+        name: "Brand Assets 2024"
+        description: "All brand-related assets for 2024 campaign"
+        parentId: "123e4567-e89b-12d3-a456-426614174007"
+        createdBy: "123e4567-e89b-12d3-a456-426614174004"
+        createdAt: "2024-01-01T00:00:00Z"
+        updatedAt: "2024-01-15T14:30:00Z"
+
+# Update paths section to include examples
+paths:
+  /assets:
+    get:
+      # ... existing specification ...
+      responses:
+        '200':
+          description: Successfully retrieved assets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetListResponse'
+              example:
+                $ref: '#/components/examples/AssetListExample/value'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              example:
+                $ref: '#/components/examples/ErrorExamples/unauthorized/value'
+
+    post:
+      # ... existing specification ...
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRequest'
+            examples:
+              video:
+                summary: Video asset ingest
+                value:
+                  title: "Product Launch Keynote"
+                  description: "CEO keynote speech from product launch event"
+                  type: "video"
+                  metadata:
+                    event: "Winter Product Launch 2024"
+                    speaker: "Jane Smith"
+                    location: "Main Auditorium"
+                  sourcePath: "/uploads/keynote.mp4"
+              document:
+                summary: Document asset ingest
+                value:
+                  title: "Technical Specifications"
+                  description: "Product technical documentation"
+                  type: "document"
+                  metadata:
+                    department: "Engineering"
+                    version: "1.0"
+                    language: "English"
+                  sourcePath: "/uploads/specs.pdf"
+
+  /assets/search:
+    post:
+      # ... existing specification ...
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchParams'
+            examples:
+              basicSearch:
+                summary: Basic text search
+                value:
+                  query: "brand video"
+                  type: "video"
+                  limit: 20
+                  offset: 0
+              advancedSearch:
+                summary: Advanced metadata search
+                value:
+                  metadata:
+                    must:
+                      - path: "resolution"
+                        op: "eq"
+                        value: "1920x1080"
+                      - path: "tags"
+                        op: "array_contains"
+                        value: ["brand", "corporate"]
+                    mustNot:
+                      - path: "status"
+                        op: "eq"
+                        value: "archived"
+                  createdAfter: "2024-01-01T00:00:00Z"
+                  createdBefore: "2024-12-31T23:59:59Z"
+                  limit: 50
+              dateRangeSearch:
+                summary: Date range search
+                value:
+                  createdAfter: "2024-01-01T00:00:00Z"
+                  createdBefore: "2024-01-31T23:59:59Z"
+                  type: "video"
+                  status: "ready"
+
+# ... rest of the specification remains the same ...
