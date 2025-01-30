@@ -1,0 +1,233 @@
+# main.tf
+provider "aws" {
+  region = var.aws_region
+}
+
+# VPC and Network Configuration
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
+
+  name = "mam-vpc"
+  cidr = "10.0.0.0/16"
+
+  azs             = ["${var.aws_region}a", "${var.aws_region}b"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
+
+  enable_nat_gateway = true
+  single_nat_gateway = true
+  
+  tags = {
+    Environment = var.environment
+    Project     = "MAM"
+  }
+}
+
+# RDS PostgreSQL Instance
+resource "aws_db_instance" "mam_db" {
+  identifier        = "mam-postgres"
+  engine            = "postgres"
+  engine_version    = "14.7"
+  instance_class    = "db.t3.medium"
+  allocated_storage = 100
+
+  db_name  = "mam_db"
+  username = var.db_username
+  password = var.db_password
+
+  vpc_security_group_ids = [aws_security_group.db_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.mam.id
+
+  backup_retention_period = 7
+  multi_az               = var.environment == "production"
+  skip_final_snapshot    = true
+
+  tags = {
+    Environment = var.environment
+    Project     = "MAM"
+  }
+}
+
+# ElastiCache Redis Instance
+resource "aws_elasticache_cluster" "mam_redis" {
+  cluster_id           = "mam-redis"
+  engine              = "redis"
+  node_type           = "cache.t3.micro"
+  num_cache_nodes     = 1
+  parameter_group_family = "redis6.x"
+  port                = 6379
+  security_group_ids  = [aws_security_group.redis_sg.id]
+  subnet_group_name   = aws_elasticache_subnet_group.mam.name
+}
+
+# EC2 Instance for Backend
+resource "aws_instance" "mam_backend" {
+  ami           = var.ami_id
+  instance_type = "t3.medium"
+
+  subnet_id                   = module.vpc.private_subnets[0]
+  vpc_security_group_ids      = [aws_security_group.backend_sg.id]
+  associate_public_ip_address = false
+
+  root_block_device {
+    volume_size = 100
+    volume_type = "gp3"
+  }
+
+  user_data = templatefile("${path.module}/scripts/backend-init.sh", {
+    db_host     = aws_db_instance.mam_db.endpoint
+    db_name     = aws_db_instance.mam_db.db_name
+    db_user     = var.db_username
+    db_password = var.db_password
+    redis_host  = aws_elasticache_cluster.mam_redis.cache_nodes[0].address
+  })
+
+  tags = {
+    Name        = "mam-backend"
+    Environment = var.environment
+    Project     = "MAM"
+  }
+}
+
+# EC2 Instance for Frontend
+resource "aws_instance" "mam_frontend" {
+  ami           = var.ami_id
+  instance_type = "t3.small"
+
+  subnet_id                   = module.vpc.private_subnets[0]
+  vpc_security_group_ids      = [aws_security_group.frontend_sg.id]
+  associate_public_ip_address = false
+
+  user_data = templatefile("${path.module}/scripts/frontend-init.sh", {
+    backend_url = "http://${aws_instance.mam_backend.private_ip}:8080"
+  })
+
+  tags = {
+    Name        = "mam-frontend"
+    Environment = var.environment
+    Project     = "MAM"
+  }
+}
+
+# Application Load Balancer
+resource "aws_lb" "mam_alb" {
+  name               = "mam-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets           = module.vpc.public_subnets
+
+  tags = {
+    Environment = var.environment
+    Project     = "MAM"
+  }
+}
+
+# ALB Target Groups
+resource "aws_lb_target_group" "frontend" {
+  name     = "mam-frontend-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = module.vpc.vpc_id
+
+  health_check {
+    path                = "/"
+    healthy_threshold   = 2
+    unhealthy_threshold = 10
+  }
+}
+
+resource "aws_lb_target_group" "backend" {
+  name     = "mam-backend-tg"
+  port     = 8080
+  protocol = "HTTP"
+  vpc_id   = module.vpc.vpc_id
+
+  health_check {
+    path                = "/api/v1/health"
+    healthy_threshold   = 2
+    unhealthy_threshold = 10
+  }
+}
+
+# S3 Bucket for Media Storage
+resource "aws_s3_bucket" "media_storage" {
+  bucket = "mam-media-storage-${var.environment}"
+
+  tags = {
+    Environment = var.environment
+    Project     = "MAM"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "media_storage" {
+  bucket = aws_s3_bucket.media_storage.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+# Security Groups
+resource "aws_security_group" "alb_sg" {
+  name        = "mam-alb-sg"
+  description = "Security group for MAM ALB"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# variables.tf
+variable "aws_region" {
+  description = "AWS region"
+  default     = "us-west-2"
+}
+
+variable "environment" {
+  description = "Environment (production/staging)"
+  default     = "staging"
+}
+
+variable "db_username" {
+  description = "Database username"
+}
+
+variable "db_password" {
+  description = "Database password"
+  sensitive   = true
+}
+
+variable "ami_id" {
+  description = "AMI ID for EC2 instances"
+}
+
+# outputs.tf
+output "alb_dns_name" {
+  value = aws_lb.mam_alb.dns_name
+}
+
+output "database_endpoint" {
+  value = aws_db_instance.mam_db.endpoint
+}
+
+output "redis_endpoint" {
+  value = aws_elasticache_cluster.mam_redis.cache_nodes[0].address
+}
