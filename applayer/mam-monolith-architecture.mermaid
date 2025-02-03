@@ -1,0 +1,28 @@
+graph TD
+    %% Client Layer
+    UI[Web UI / Client Apps]
+    
+    %% Core Service
+    MAM[MAM Monolithic Service]
+    
+    %% Data Stores
+    DB[(PostgreSQL DB)]
+    REDIS[(Redis Cache)]
+    
+    %% External Systems
+    TAMS[TAMS API]
+    
+    %% Connections
+    UI --> MAM
+    MAM --> DB
+    MAM --> REDIS
+    MAM --> TAMS
+    
+    %% Add styles
+    classDef service fill:#68a2fa,stroke:#2563eb,stroke-width:2px
+    classDef storage fill:#fbbf24,stroke:#d97706,stroke-width:2px
+    classDef external fill:#22c55e,stroke:#16a34a,stroke-width:2px
+    
+    class MAM service
+    class DB,REDIS storage
+    class TAMS external

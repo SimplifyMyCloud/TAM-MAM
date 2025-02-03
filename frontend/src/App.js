@@ -1,11 +1,13 @@
 // src/App.js
 import React, { useState, useEffect } from 'react';
 import { Search, Video, FileAudio, Grid, List, Upload } from 'lucide-react';
+import UploadDialog from './components/UploadDialog';
 
 function App() {
   const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [assets, setAssets] = useState([]);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   // Mock data
   const mockAssets = [
@@ -70,7 +72,10 @@ function App() {
           >
             <List className="h-4 w-4" />
           </button>
-          <button className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg">
+          <button 
+            className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg"
+            onClick={() => setIsUploadOpen(true)}
+          >
             <Upload className="h-4 w-4" />
             Upload
           </button>
@@ -159,6 +164,12 @@ function App() {
           ))}
         </div>
       )}
+
+      {/* Upload Dialog */}
+      <UploadDialog 
+        isOpen={isUploadOpen} 
+        onClose={() => setIsUploadOpen(false)} 
+      />
     </div>
   );
 }
