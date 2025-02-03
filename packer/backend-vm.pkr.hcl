@@ -15,7 +15,7 @@ source "amazon-ebs" "backend" {
   }
 
   ssh_username = "ubuntu"
-  
+
   tags = {
     Environment = var.environment
     Component   = "MAM Backend"
