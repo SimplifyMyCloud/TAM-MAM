@@ -1,5 +1,5 @@
 # scripts/backend-init.sh
-#!/bin/bash
+#!/bin/bash -x
 set -e
 
 apt-get update && apt-get upgrade -y

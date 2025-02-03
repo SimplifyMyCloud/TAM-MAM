@@ -1,8 +1,8 @@
 # backend.pkr.hcl
 source "amazon-ebs" "backend" {
-  ami_name      = "mam-backend-${var.environment}"
+  ami_name      = "mam-backend-smc-dev-{{timestamp}}"
   instance_type = "t3.small"
-  region        = var.aws_region
+  region        = "us-west-2"
 
   source_ami_filter {
     filters = {
@@ -17,7 +17,7 @@ source "amazon-ebs" "backend" {
   ssh_username = "ubuntu"
 
   tags = {
-    Environment = var.environment
+    Environment = "smc-dev"
     Component   = "MAM Backend"
   }
 }
@@ -31,6 +31,7 @@ build {
   }
 
   provisioner "shell" {
-    script = "scripts/backend-init.sh"
+    script          = "scripts/backend-init.sh"
+    execute_command = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
   }
 }

@@ -1,9 +1,9 @@
 
 # frontend.pkr.hcl
 source "amazon-ebs" "frontend" {
-  ami_name      = "mam-frontend-${var.environment}"
+  ami_name      = "mam-frontend-smc-dev-{{timestamp}}"
   instance_type = "t3.small"
-  region        = var.aws_region
+  region        = "us-west-2"
 
   source_ami_filter {
     filters = {
@@ -18,7 +18,7 @@ source "amazon-ebs" "frontend" {
   ssh_username = "ubuntu"
 
   tags = {
-    Environment = var.environment
+    Environment = "smc-dev"
     Component   = "MAM Frontend"
   }
 }
@@ -32,6 +32,7 @@ build {
   }
 
   provisioner "shell" {
-    script = "scripts/frontend-init.sh"
+    script          = "scripts/frontend-init.sh"
+    execute_command = "sudo sh -c '{{ .Vars }} {{ .Path }}'"
   }
 }
