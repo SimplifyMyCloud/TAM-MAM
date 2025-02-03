@@ -1,7 +1,7 @@
 # variables.pkr.hcl
 variable "environment" {
   type    = string
-  default = "dev"
+  default = "smc-dev"
 }
 
 variable "aws_region" {

@@ -1,16 +1,7 @@
 # backend.pkr.hcl
-packer {
-  required_plugins {
-    amazon = {
-      source  = "github.com/hashicorp/amazon"
-      version = "~> 1.0"
-    }
-  }
-}
-
 source "amazon-ebs" "backend" {
   ami_name      = "mam-backend-${var.environment}"
-  instance_type = "t3.micro"
+  instance_type = "t3.small"
   region        = var.aws_region
 
   source_ami_filter {
